@@ -28,6 +28,11 @@ create table if not exists posts (
 
 create index if not exists posts_status_created_idx on posts (status, created_at desc);
 create index if not exists posts_category_idx on posts (category);
+-- Composite index for the infinite-scroll feed's keyset-paginated,
+-- category-filtered queries (see lib/posts.js) — keeps those fast as the
+-- table grows past what posts_status_created_idx/posts_category_idx cover
+-- well on their own for a filtered, cursor-ordered scan.
+create index if not exists posts_status_cat_created_idx on posts (status, category, created_at desc, id desc);
 
 -- ---------------------------------------------------------------------------
 -- votes: one vote per (post, anonymous session). Re-voting changes the vote.

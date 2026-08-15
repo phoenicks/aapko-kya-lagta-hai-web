@@ -9,7 +9,7 @@ export default function Header() {
   const t = STR[lang];
 
   return (
-    <header className="flex items-center justify-between px-4 sm:px-6 py-4 max-w-3xl mx-auto">
+    <header className="flex items-center justify-between px-4 sm:px-6 pt-[calc(env(safe-area-inset-top)+1rem)] pb-4 max-w-3xl mx-auto">
       <Link href="/" className="flex flex-col leading-tight">
         <span className="text-lg sm:text-xl font-extrabold tracking-tight text-ink-primary leading-tight">
           Aapko Kya Lagta Hai

@@ -1,4 +1,5 @@
 import Link from "next/link";
+import Image from "next/image";
 import { findCategory } from "@/lib/categories";
 
 // Plain, crawlable grid of debate links — this is what lets Google (and
@@ -26,12 +27,12 @@ export default function DebateGrid({ posts, heading }) {
               className="group rounded-2xl overflow-hidden relative shadow-card"
               style={{ background: "var(--neutral-mid)", aspectRatio: "3 / 4" }}
             >
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
+              <Image
                 src={post.image_url}
                 alt={post.prompt_en}
-                loading="lazy"
-                className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+                fill
+                sizes="(min-width: 640px) 33vw, 50vw"
+                className="object-cover transition-transform duration-300 group-hover:scale-105"
               />
               <div
                 className="absolute inset-x-0 bottom-0 h-2/3 pointer-events-none"

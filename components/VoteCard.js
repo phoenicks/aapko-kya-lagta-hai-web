@@ -2,73 +2,88 @@
 
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
+import Image from "next/image";
 import { useVote } from "@/lib/useVote";
 import { useLangTheme } from "./LangThemeProvider";
 import { STR } from "@/lib/i18n";
 import { findCategory } from "@/lib/categories";
 import { buildShareCardDataUrl } from "@/lib/shareCard";
 import { burstConfetti, hapticTap } from "@/lib/confetti";
-import SplitBar from "./SplitBar";
-import CardPeek from "./CardPeek";
+import InlineResultOverlay from "./InlineResultOverlay";
 
-// The swipeable deck card used on the home feed. Drag left/right or tap the
-// thumbs buttons (or use the arrow keys) — swiping RIGHT / tapping 👍 always
-// means "yes" (up), swiping LEFT / tapping 👎 always means "no" (down).
-// After voting, a result sheet slides up with the live split and a link
-// through to the full debate page (comments live there). `nextPost`, if
-// given, peeks out from behind for the stacked-deck effect.
-export default function VoteCard({ post, nextPost, onAdvance }) {
+// One full-screen section of the infinite swipe feed. Drag left/right (or
+// tap the thumbs buttons, or use the arrow keys when this is the active
+// card) to vote — swiping RIGHT / tapping 👍 always means "yes" (up),
+// swiping LEFT / tapping 👎 always means "no" (down). This card sits inside
+// a vertically scroll-snapping feed (see HomeFeed.js), so the trickiest
+// part of this component is telling a horizontal vote-swipe apart from a
+// vertical feed-scroll on the very first touchmove — see the pointer
+// handlers below for how that's resolved.
+export default function VoteCard({ post, index, active, cardRef, onAdvance }) {
   const { lang } = useLangTheme();
   const t = STR[lang];
   const vote = useVote(post);
-  const cardRef = useRef(null);
+  const dragRef = useRef(null);
   const stampUpRef = useRef(null);
   const stampDownRef = useRef(null);
-  const [revealed, setRevealed] = useState(false);
   const [exiting, setExiting] = useState(false);
+  const [showOverlay, setShowOverlay] = useState(false);
   // Captured the instant the user swipes/taps — independent of whatever
   // happens to the network request afterwards, so "You said 👍" can never
   // flip to "You said 👎" just because a vote call was slow or failed.
   const [castDirection, setCastDirection] = useState(null);
-  const drag = useRef({ startX: 0, startY: 0, dx: 0, dragging: false });
+
+  const drag = useRef({
+    startX: 0,
+    startY: 0,
+    dx: 0,
+    dragging: false,
+    axis: null, // null | "horizontal" — vertical drags are left alone for native scroll-snap
+    pointerId: null,
+  });
+  const touchMoveHandlerRef = useRef(null);
 
   const category = findCategory(post.category);
 
-  // Entrance animation: every time this component mounts (i.e. every time
-  // a card is promoted to the front of the deck), it scales/fades in from
-  // the peeked position instead of just popping into place.
-  useEffect(() => {
-    const el = cardRef.current;
-    if (!el) return;
-    el.style.transition = "none";
-    el.style.opacity = "0";
-    el.style.transform = "scale(0.94) translateY(14px)";
-    const raf1 = requestAnimationFrame(() => {
-      const raf2 = requestAnimationFrame(() => {
-        el.style.transition = "transform 0.38s cubic-bezier(.2,.9,.3,1), opacity 0.38s ease";
-        el.style.opacity = "1";
-        el.style.transform = "scale(1) translateY(0)";
-      });
-      el.__raf2 = raf2;
-    });
-    return () => {
-      cancelAnimationFrame(raf1);
-      if (el.__raf2) cancelAnimationFrame(el.__raf2);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  // Arrow-key voting for desktop/keyboard users — → is yes, ← is no.
+  // Arrow-key voting for desktop/keyboard users — only the currently
+  // active (centered) card responds, so keys don't fire votes on cards
+  // that are merely nearby in the scroll list.
   useEffect(() => {
     function onKeyDown(e) {
-      if (revealed || exiting) return;
+      if (!active || showOverlay || exiting) return;
       if (e.key === "ArrowRight") tapVote("up");
       else if (e.key === "ArrowLeft") tapVote("down");
     }
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [revealed, exiting]);
+  }, [active, showOverlay, exiting]);
+
+  // Auto-advance to the next card shortly after the result appears, so the
+  // feed keeps its scroll momentum instead of waiting on a "Next" tap.
+  // Guarded by `active` (read fresh via a ref, not the closed-over prop) so
+  // that if the user manually scrolls away in the meantime, the timer
+  // doesn't yank them back forward against their own input.
+  const activeRef = useRef(active);
+  useEffect(() => {
+    activeRef.current = active;
+  }, [active]);
+
+  useEffect(() => {
+    if (!showOverlay) return;
+    const timer = setTimeout(() => {
+      if (activeRef.current) onAdvance?.();
+    }, 1100);
+    return () => clearTimeout(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [showOverlay]);
+
+  // Clean up a lingering non-passive touchmove listener if this card
+  // unmounts mid-drag (e.g. category switch during a swipe).
+  useEffect(() => {
+    return () => unlockAxis();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   function point(e) {
     if (e.touches && e.touches.length) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
@@ -76,24 +91,82 @@ export default function VoteCard({ post, nextPost, onAdvance }) {
   }
 
   function onPointerDown(e) {
-    if (revealed) return;
+    // `exiting` covers the brief window after a vote is cast but before the
+    // result overlay has appeared — without it, a fast second swipe in that
+    // window could re-enter finishSwipe() and cast a second, possibly
+    // opposite, vote. `drag.current.dragging` guards against a second
+    // finger touching down mid-drag and stomping the first finger's start
+    // coordinates.
+    if (showOverlay || exiting || drag.current.dragging) return;
     drag.current.dragging = true;
+    drag.current.axis = null;
+    drag.current.pointerId = e.pointerId;
     const p = point(e);
     drag.current.startX = p.x;
     drag.current.startY = p.y;
-    if (cardRef.current) cardRef.current.style.transition = "none";
+    if (dragRef.current) dragRef.current.style.transition = "none";
+  }
+
+  // Once a horizontal vote-swipe is detected, capture the pointer and add a
+  // native, non-passive touchmove listener so preventDefault() reliably
+  // stops the browser from also starting its own scroll for this gesture.
+  // `touch-action: pan-y` on the element (below) means the browser hasn't
+  // committed to a native gesture yet, so at most a few imperceptible
+  // pixels of scroll could happen before this lock fires.
+  function lockHorizontalAxis() {
+    drag.current.axis = "horizontal";
+    const el = dragRef.current;
+    if (!el) return;
+    try {
+      el.setPointerCapture?.(drag.current.pointerId);
+    } catch {
+      // ignore — pointer capture is a nice-to-have here, not required
+    }
+    if (!touchMoveHandlerRef.current) {
+      const handler = (ev) => {
+        if (drag.current.axis === "horizontal") ev.preventDefault();
+      };
+      touchMoveHandlerRef.current = handler;
+      el.addEventListener("touchmove", handler, { passive: false });
+    }
+  }
+
+  function unlockAxis() {
+    const el = dragRef.current;
+    if (el && touchMoveHandlerRef.current) {
+      el.removeEventListener("touchmove", touchMoveHandlerRef.current);
+    }
+    touchMoveHandlerRef.current = null;
+    drag.current.axis = null;
   }
 
   function onPointerMove(e) {
-    if (!drag.current.dragging || revealed) return;
+    if (!drag.current.dragging || showOverlay) return;
     const p = point(e);
-    // Positive dx = dragging right = "yes". Negative dx = dragging left = "no".
     const dx = p.x - drag.current.startX;
-    const dy = (p.y - drag.current.startY) * 0.3;
+    const dy = p.y - drag.current.startY;
+
+    if (drag.current.axis === null) {
+      // Below the lock threshold, keep waiting — don't commit to an axis
+      // on a couple of jittery pixels.
+      if (Math.hypot(dx, dy) < 10) return;
+      // Bias toward "it's a scroll" on ambiguous diagonals: a missed
+      // vote-swipe is a much cheaper mistake than an accidental vote.
+      if (Math.abs(dx) > Math.abs(dy) * 1.3) {
+        lockHorizontalAxis();
+      } else {
+        drag.current.dragging = false;
+        return;
+      }
+    }
+
+    if (drag.current.axis !== "horizontal") return;
+
     drag.current.dx = dx;
     const rot = dx / 18;
-    if (cardRef.current) {
-      cardRef.current.style.transform = `translate(${dx}px, ${dy}px) rotate(${rot}deg)`;
+    const dyDamped = dy * 0.3;
+    if (dragRef.current) {
+      dragRef.current.style.transform = `translate(${dx}px, ${dyDamped}px) rotate(${rot}deg)`;
     }
     const s = Math.min(Math.abs(dx) / 90, 1);
     if (stampUpRef.current && stampDownRef.current) {
@@ -108,14 +181,17 @@ export default function VoteCard({ post, nextPost, onAdvance }) {
   }
 
   function onPointerUp() {
-    if (!drag.current.dragging || revealed) return;
+    const wasHorizontal = drag.current.axis === "horizontal";
+    const wasDragging = drag.current.dragging;
     drag.current.dragging = false;
-    if (cardRef.current) cardRef.current.style.transition = "transform 0.35s cubic-bezier(.2,.9,.3,1)";
+    unlockAxis();
+    if (!wasDragging || !wasHorizontal || showOverlay) return;
+
+    if (dragRef.current) dragRef.current.style.transition = "transform 0.35s cubic-bezier(.2,.9,.3,1)";
     if (Math.abs(drag.current.dx) > 90) {
-      // dx > 0 (dragged right) => "up" / yes. dx < 0 (dragged left) => "down" / no.
       finishSwipe(drag.current.dx > 0 ? "up" : "down");
-    } else if (cardRef.current) {
-      cardRef.current.style.transform = "translate(0,0) rotate(0)";
+    } else if (dragRef.current) {
+      dragRef.current.style.transform = "translate(0,0) rotate(0)";
       if (stampUpRef.current) stampUpRef.current.style.opacity = 0;
       if (stampDownRef.current) stampDownRef.current.style.opacity = 0;
     }
@@ -126,18 +202,30 @@ export default function VoteCard({ post, nextPost, onAdvance }) {
     setExiting(true);
     setCastDirection(direction);
     const flyX = direction === "up" ? 700 : -700;
-    if (cardRef.current) {
-      cardRef.current.style.transform = `translate(${flyX}px, -40px) rotate(${direction === "up" ? 24 : -24}deg)`;
-      cardRef.current.style.opacity = "0";
+    if (dragRef.current) {
+      dragRef.current.style.transform = `translate(${flyX}px, -40px) rotate(${direction === "up" ? 24 : -24}deg)`;
+      dragRef.current.style.opacity = "0";
     }
     vote.castVote(direction);
     hapticTap(direction === "up" ? [10, 30, 10] : 12);
     if (direction === "up") burstConfetti();
-    setTimeout(() => setRevealed(true), 280);
+    setTimeout(() => {
+      // The fly-off was just feedback for the swipe, not a permanent exit —
+      // this card stays visible (with the result overlay on top of it)
+      // until the feed auto-advances to the next one. Without resetting
+      // the transform/opacity here, the card would stay flown-off/invisible
+      // and the section would show blank page background instead.
+      if (dragRef.current) {
+        dragRef.current.style.transition = "none";
+        dragRef.current.style.transform = "translate(0,0) rotate(0)";
+        dragRef.current.style.opacity = "1";
+      }
+      setShowOverlay(true);
+    }, 220);
   }
 
   function tapVote(direction) {
-    if (revealed || exiting) return;
+    if (showOverlay || exiting) return;
     finishSwipe(direction);
   }
 
@@ -159,132 +247,98 @@ export default function VoteCard({ post, nextPost, onAdvance }) {
   const debateUrl = `/debate/${post.slug}`;
 
   return (
-    <div className="relative">
-      <div className="relative" style={{ aspectRatio: "3 / 4" }}>
-        <CardPeek post={nextPost} />
+    <section
+      ref={cardRef}
+      data-index={index}
+      className="relative w-full snap-start snap-always"
+      style={{ height: "100dvh" }}
+    >
+      <div
+        ref={dragRef}
+        onPointerDown={onPointerDown}
+        onPointerMove={onPointerMove}
+        onPointerUp={onPointerUp}
+        onPointerCancel={onPointerUp}
+        className="absolute inset-0 overflow-hidden select-none"
+        style={{ touchAction: "pan-y", background: "var(--neutral-mid)", cursor: showOverlay ? "default" : "grab" }}
+      >
+        <Image
+          src={post.image_url}
+          alt={post.prompt_en}
+          fill
+          priority={index === 0}
+          sizes="100vw"
+          className="object-cover pointer-events-none"
+          draggable={false}
+        />
         <div
-          ref={cardRef}
-          onPointerDown={onPointerDown}
-          onPointerMove={onPointerMove}
-          onPointerUp={onPointerUp}
-          onPointerCancel={onPointerUp}
-          className="absolute inset-0 rounded-card overflow-hidden shadow-card select-none"
-          style={{ touchAction: "none", background: "var(--neutral-mid)", cursor: revealed ? "default" : "grab" }}
+          className="absolute inset-x-0 bottom-0 h-3/5 pointer-events-none"
+          style={{ background: "linear-gradient(to top, rgba(0,0,0,0.78), rgba(0,0,0,0))" }}
+        />
+        {category && (
+          <div className="absolute top-[calc(env(safe-area-inset-top)+0.875rem)] left-3.5 text-white text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full backdrop-blur-sm" style={{ background: "rgba(0,0,0,0.45)" }}>
+            {lang === "en" ? category.label_en : category.label_hi}
+          </div>
+        )}
+        <div
+          ref={stampUpRef}
+          className="absolute top-[38%] left-5 text-lg font-extrabold uppercase tracking-wide px-3 py-1.5 rounded-lg border-4 opacity-0 pointer-events-none"
+          style={{ color: "var(--up-color)", borderColor: "var(--up-color)", transform: "rotate(-14deg)" }}
         >
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img
-            src={post.image_url}
-            alt={post.prompt_en}
-            className="absolute inset-0 w-full h-full object-cover pointer-events-none"
-            draggable={false}
-          />
-          <div
-            className="absolute inset-x-0 bottom-0 h-3/5 pointer-events-none"
-            style={{ background: "linear-gradient(to top, rgba(0,0,0,0.78), rgba(0,0,0,0))" }}
-          />
-          {category && (
-            <div className="absolute top-3.5 left-3.5 text-white text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full backdrop-blur-sm" style={{ background: "rgba(0,0,0,0.45)" }}>
-              {lang === "en" ? category.label_en : category.label_hi}
-            </div>
-          )}
-          <div
-            ref={stampUpRef}
-            className="absolute top-[38%] left-5 text-lg font-extrabold uppercase tracking-wide px-3 py-1.5 rounded-lg border-4 opacity-0 pointer-events-none"
-            style={{ color: "var(--up-color)", borderColor: "var(--up-color)", transform: "rotate(-14deg)" }}
-          >
-            {lang === "en" ? "YES" : "हाँ"}
-          </div>
-          <div
-            ref={stampDownRef}
-            className="absolute top-[38%] right-5 text-lg font-extrabold uppercase tracking-wide px-3 py-1.5 rounded-lg border-4 opacity-0 pointer-events-none"
-            style={{ color: "var(--down-color)", borderColor: "var(--down-color)", transform: "rotate(14deg)" }}
-          >
-            {lang === "en" ? "NOPE" : "नहीं"}
-          </div>
-          <div className="absolute inset-x-0 bottom-0 p-4 text-white">
-            <p className="text-lg font-bold leading-snug">{post.prompt_en}</p>
+          {lang === "en" ? "YES" : "हाँ"}
+        </div>
+        <div
+          ref={stampDownRef}
+          className="absolute top-[38%] right-5 text-lg font-extrabold uppercase tracking-wide px-3 py-1.5 rounded-lg border-4 opacity-0 pointer-events-none"
+          style={{ color: "var(--down-color)", borderColor: "var(--down-color)", transform: "rotate(14deg)" }}
+        >
+          {lang === "en" ? "NOPE" : "नहीं"}
+        </div>
+
+        {!showOverlay && (
+          <div className="absolute inset-x-0 bottom-0 p-5 pb-[calc(env(safe-area-inset-bottom)+6rem)] text-white pointer-events-none">
+            <p className="text-xl font-bold leading-snug">{post.prompt_en}</p>
             <p className="text-sm opacity-80 mt-1">{post.prompt_hi}</p>
           </div>
-        </div>
+        )}
       </div>
 
-      <div className="flex items-center justify-center gap-4 mt-4">
-        <button
-          onClick={() => tapVote("down")}
-          aria-label="Thumbs down"
-          className="w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-card transition-transform duration-150 active:scale-90"
-          style={{ background: "var(--surface-1)", color: "var(--down-color)" }}
-        >
-          👎
-        </button>
-        <Link
-          href={debateUrl}
-          className="w-11 h-11 rounded-full flex items-center justify-center text-base shadow-card transition-transform duration-150 active:scale-90"
-          style={{ background: "var(--surface-1)", color: "var(--text-secondary)" }}
-          aria-label="Comments"
-        >
-          💬
-        </Link>
-        <button
-          onClick={() => tapVote("up")}
-          aria-label="Thumbs up"
-          className="w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-card transition-transform duration-150 active:scale-90"
-          style={{ background: "var(--surface-1)", color: "var(--up-color)" }}
-        >
-          👍
-        </button>
-      </div>
-      <p className="text-center text-[11px] text-ink-muted mt-2 hidden sm:block">
-        {lang === "en" ? "Tip: use ← / → arrow keys to vote" : "Tip: वोट के लिए ← / → arrow keys दबाएं"}
-      </p>
-
-      {revealed && (
-        <>
-          <div
-            className="fixed inset-0 z-10 bg-black/50"
-            onClick={() => {
-              setRevealed(false);
-              onAdvance?.();
-            }}
-          />
-          <div
-            className="fixed left-0 right-0 bottom-0 z-20 rounded-sheet p-5 pb-7 max-w-3xl mx-auto"
-            style={{ background: "var(--surface-1)", boxShadow: "0 -10px 30px rgba(0,0,0,0.25)" }}
+      {showOverlay ? (
+        <InlineResultOverlay
+          direction={castDirection}
+          pctUp={vote.pctUp}
+          pctDown={vote.pctDown}
+          total={vote.total}
+          onShare={handleShare}
+        />
+      ) : (
+        <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)]">
+          <button
+            onClick={() => tapVote("down")}
+            aria-label="Thumbs down"
+            className="w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-card transition-transform duration-150 active:scale-90"
+            style={{ background: "var(--surface-1)", color: "var(--down-color)" }}
           >
-            <div className="w-9 h-1 rounded-full mx-auto mb-4" style={{ background: "var(--gridline)" }} />
-            <h3 className="text-base font-bold mb-3">
-              {castDirection === "up" ? t.youSaidUp : t.youSaidDown} — {t.viewDebate.replace(" →", "")}
-            </h3>
-            <SplitBar pctUp={vote.pctUp} pctDown={vote.pctDown} total={vote.total} />
-            <div className="flex gap-2.5 mt-4">
-              <button
-                onClick={handleShare}
-                className="flex-1 rounded-xl py-3 text-sm font-bold transition-transform duration-150 active:scale-95"
-                style={{ background: "var(--chip-bg)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
-              >
-                {t.share}
-              </button>
-              <Link
-                href={debateUrl}
-                className="flex-1 rounded-xl py-3 text-sm font-bold text-center transition-transform duration-150 active:scale-95"
-                style={{ background: "var(--text-primary)", color: "var(--surface-1)" }}
-              >
-                {t.viewDebate}
-              </Link>
-              <button
-                onClick={() => {
-                  setRevealed(false);
-                  onAdvance?.();
-                }}
-                className="flex-1 rounded-xl py-3 text-sm font-bold transition-transform duration-150 active:scale-95"
-                style={{ background: "var(--chip-bg)", color: "var(--text-primary)", border: "1px solid var(--border)" }}
-              >
-                {t.next}
-              </button>
-            </div>
-          </div>
-        </>
+            👎
+          </button>
+          <Link
+            href={debateUrl}
+            className="w-11 h-11 rounded-full flex items-center justify-center text-base shadow-card transition-transform duration-150 active:scale-90"
+            style={{ background: "var(--surface-1)", color: "var(--text-secondary)" }}
+            aria-label="Comments"
+          >
+            💬
+          </Link>
+          <button
+            onClick={() => tapVote("up")}
+            aria-label="Thumbs up"
+            className="w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-card transition-transform duration-150 active:scale-90"
+            style={{ background: "var(--surface-1)", color: "var(--up-color)" }}
+          >
+            👍
+          </button>
+        </div>
       )}
-    </div>
+    </section>
   );
 }

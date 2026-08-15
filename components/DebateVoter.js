@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { useVote } from "@/lib/useVote";
 import { useLangTheme } from "./LangThemeProvider";
 import { STR } from "@/lib/i18n";
@@ -50,11 +51,13 @@ export default function DebateVoter({ post, shareUrl }) {
         className="relative rounded-card overflow-hidden shadow-card"
         style={{ background: "var(--neutral-mid)", aspectRatio: "3 / 4" }}
       >
-        {/* eslint-disable-next-line @next/next/no-img-element */}
-        <img
+        <Image
           src={post.image_url}
           alt={post.prompt_en}
-          className="absolute inset-0 w-full h-full object-cover"
+          fill
+          priority
+          sizes="(min-width: 768px) 448px, 100vw"
+          className="object-cover"
         />
         <div
           className="absolute inset-x-0 bottom-0 h-3/5 pointer-events-none"
