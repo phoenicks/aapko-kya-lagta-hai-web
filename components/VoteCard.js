@@ -314,12 +314,12 @@ export default function VoteCard({ post, index, active, cardRef, onAdvance }) {
       ) : (
         <div className="absolute inset-x-0 bottom-0 flex items-center justify-center gap-4 pb-[calc(env(safe-area-inset-bottom)+1.25rem)]">
           <button
-            onClick={() => tapVote("down")}
-            aria-label="Thumbs down"
+            onClick={() => tapVote("up")}
+            aria-label="Thumbs up"
             className="w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-card transition-transform duration-150 active:scale-90"
-            style={{ background: "var(--surface-1)", color: "var(--down-color)" }}
+            style={{ background: "var(--surface-1)", color: "var(--up-color)" }}
           >
-            👎
+            👍
           </button>
           <Link
             href={debateUrl}
@@ -330,12 +330,12 @@ export default function VoteCard({ post, index, active, cardRef, onAdvance }) {
             💬
           </Link>
           <button
-            onClick={() => tapVote("up")}
-            aria-label="Thumbs up"
+            onClick={() => tapVote("down")}
+            aria-label="Thumbs down"
             className="w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-card transition-transform duration-150 active:scale-90"
-            style={{ background: "var(--surface-1)", color: "var(--up-color)" }}
+            style={{ background: "var(--surface-1)", color: "var(--down-color)" }}
           >
-            👍
+            👎
           </button>
         </div>
       )}

@@ -76,17 +76,6 @@ export default function DebateVoter({ post, shareUrl }) {
 
       <div className="flex items-center justify-center gap-4 mt-4">
         <button
-          onClick={() => handleVote("down")}
-          aria-label="Thumbs down"
-          className="w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-card transition-transform duration-150 active:scale-90"
-          style={{
-            background: castDirection === "down" ? "var(--down-color)" : "var(--surface-1)",
-            color: castDirection === "down" ? "#fff" : "var(--down-color)",
-          }}
-        >
-          👎
-        </button>
-        <button
           onClick={() => handleVote("up")}
           aria-label="Thumbs up"
           className="w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-card transition-transform duration-150 active:scale-90"
@@ -96,6 +85,17 @@ export default function DebateVoter({ post, shareUrl }) {
           }}
         >
           👍
+        </button>
+        <button
+          onClick={() => handleVote("down")}
+          aria-label="Thumbs down"
+          className="w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-card transition-transform duration-150 active:scale-90"
+          style={{
+            background: castDirection === "down" ? "var(--down-color)" : "var(--surface-1)",
+            color: castDirection === "down" ? "#fff" : "var(--down-color)",
+          }}
+        >
+          👎
         </button>
       </div>
 
