@@ -1,10 +1,12 @@
 "use client";
 
+import { useState } from "react";
 import { useVote } from "@/lib/useVote";
 import { useLangTheme } from "./LangThemeProvider";
 import { STR } from "@/lib/i18n";
 import { findCategory } from "@/lib/categories";
 import { buildShareCardDataUrl } from "@/lib/shareCard";
+import { burstConfetti, hapticTap } from "@/lib/confetti";
 import SplitBar from "./SplitBar";
 import ShareButtons from "./ShareButtons";
 
@@ -16,12 +18,22 @@ export default function DebateVoter({ post, shareUrl }) {
   const t = STR[lang];
   const vote = useVote(post);
   const category = findCategory(post.category);
+  // Same reasoning as VoteCard: capture what was actually tapped so the
+  // label can't flip due to a slow/failed network response.
+  const [castDirection, setCastDirection] = useState(null);
+
+  function handleVote(direction) {
+    setCastDirection(direction);
+    vote.castVote(direction);
+    hapticTap(direction === "up" ? [10, 30, 10] : 12);
+    if (direction === "up") burstConfetti();
+  }
 
   async function handleShareImage() {
     const dataUrl = await buildShareCardDataUrl({
       post,
       lang,
-      direction: vote.direction,
+      direction: castDirection,
       pctUp: vote.pctUp,
       pctDown: vote.pctDown,
     });
@@ -61,23 +73,23 @@ export default function DebateVoter({ post, shareUrl }) {
 
       <div className="flex items-center justify-center gap-4 mt-4">
         <button
-          onClick={() => vote.castVote("down")}
+          onClick={() => handleVote("down")}
           aria-label="Thumbs down"
-          className="w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-card"
+          className="w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-card transition-transform duration-150 active:scale-90"
           style={{
-            background: vote.direction === "down" ? "var(--down-color)" : "var(--surface-1)",
-            color: vote.direction === "down" ? "#fff" : "var(--down-color)",
+            background: castDirection === "down" ? "var(--down-color)" : "var(--surface-1)",
+            color: castDirection === "down" ? "#fff" : "var(--down-color)",
           }}
         >
           👎
         </button>
         <button
-          onClick={() => vote.castVote("up")}
+          onClick={() => handleVote("up")}
           aria-label="Thumbs up"
-          className="w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-card"
+          className="w-14 h-14 rounded-full flex items-center justify-center text-2xl shadow-card transition-transform duration-150 active:scale-90"
           style={{
-            background: vote.direction === "up" ? "var(--up-color)" : "var(--surface-1)",
-            color: vote.direction === "up" ? "#fff" : "var(--up-color)",
+            background: castDirection === "up" ? "var(--up-color)" : "var(--surface-1)",
+            color: castDirection === "up" ? "#fff" : "var(--up-color)",
           }}
         >
           👍
@@ -98,15 +110,15 @@ export default function DebateVoter({ post, shareUrl }) {
         </p>
       )}
 
-      {vote.direction && (
+      {castDirection && (
         <div className="mt-5 rounded-2xl p-4" style={{ background: "var(--chip-bg)", border: "1px solid var(--border)" }}>
           <p className="text-sm font-bold mb-3">
-            {vote.direction === "up" ? t.youSaidUp : t.youSaidDown}
+            {castDirection === "up" ? t.youSaidUp : t.youSaidDown}
           </p>
           <SplitBar pctUp={vote.pctUp} pctDown={vote.pctDown} total={vote.total} />
           <button
             onClick={handleShareImage}
-            className="w-full mt-4 rounded-xl py-3 text-sm font-bold"
+            className="w-full mt-4 rounded-xl py-3 text-sm font-bold transition-transform duration-150 active:scale-95"
             style={{ background: "var(--text-primary)", color: "var(--surface-1)" }}
           >
             {t.share}

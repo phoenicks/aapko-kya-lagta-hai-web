@@ -18,6 +18,7 @@ export default function AdminDashboard() {
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
   const [fetchMsg, setFetchMsg] = useState("");
+  const [refreshingId, setRefreshingId] = useState(null);
 
   async function load() {
     setLoading(true);
@@ -42,6 +43,25 @@ export default function AdminDashboard() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: post.id, status: nextStatus }),
     });
+  }
+
+  async function refreshImage(post) {
+    setRefreshingId(post.id);
+    try {
+      const res = await fetch("/api/admin/posts/refresh-image", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: post.id }),
+      });
+      const data = await res.json();
+      if (res.ok) {
+        setPosts((ps) => ps.map((p) => (p.id === post.id ? { ...p, image_url: data.post.image_url } : p)));
+      } else {
+        alert(data.error || "Couldn't fetch a new image");
+      }
+    } finally {
+      setRefreshingId(null);
+    }
   }
 
   async function runFetchNow() {
@@ -123,6 +143,7 @@ export default function AdminDashboard() {
                 <th className="p-3">Votes (👍/👎)</th>
                 <th className="p-3">Status</th>
                 <th className="p-3">Enable / disable</th>
+                <th className="p-3">Image</th>
               </tr>
             </thead>
             <tbody>
@@ -164,6 +185,17 @@ export default function AdminDashboard() {
                       style={{ background: "var(--chip-bg)", border: "1px solid var(--border)" }}
                     >
                       {post.status === "active" ? "Disable" : "Enable"}
+                    </button>
+                  </td>
+                  <td className="p-3">
+                    <button
+                      onClick={() => refreshImage(post)}
+                      disabled={refreshingId === post.id}
+                      className="rounded-full px-3 py-1.5 text-xs font-bold disabled:opacity-50"
+                      style={{ background: "var(--chip-bg)", border: "1px solid var(--border)" }}
+                      title="Pull a different Unsplash/Pexels image for this post, keeping its prompt, votes, and comments"
+                    >
+                      {refreshingId === post.id ? "Fetching…" : "🔄 New image"}
                     </button>
                   </td>
                 </tr>

@@ -22,6 +22,8 @@ export default function HomeFeed({ initialPosts }) {
   );
 
   const current = filtered.length ? filtered[index % filtered.length] : null;
+  const next =
+    filtered.length > 1 ? filtered[(index + 1) % filtered.length] : null;
 
   function handleCategoryChange(cat) {
     setActiveCat(cat);
@@ -37,6 +39,7 @@ export default function HomeFeed({ initialPosts }) {
           <VoteCard
             key={current.id}
             post={current}
+            nextPost={next}
             onAdvance={() => setIndex((i) => i + 1)}
           />
         ) : (
