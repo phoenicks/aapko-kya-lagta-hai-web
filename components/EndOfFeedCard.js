@@ -26,8 +26,7 @@ export default function EndOfFeedCard({ variant = "end" }) {
       {!isEmpty && <p className="text-sm text-ink-secondary">{t.checkBackTomorrow}</p>}
       {!isEmpty && (
         <p className="text-xs text-ink-muted mt-8 max-w-xs">
-          Aapko Kya Lagta Hai — आपको क्या लगता है? · Images sourced from Unsplash &amp; Pexels,
-          credited on each debate page.
+          Images sourced from Unsplash &amp; Pexels, credited on each debate page.
         </p>
       )}
     </div>

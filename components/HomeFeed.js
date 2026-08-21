@@ -189,12 +189,23 @@ export default function HomeFeed({ initialPosts, initialCursor, initialHasMore }
   const sentinelIndex = Math.max(posts.length - PREFETCH_AHEAD, 0);
 
   return (
-    <div className="h-dvh flex flex-col overflow-hidden">
-      <Header />
-      <CategoryChips active={activeCat} onChange={handleCategoryChange} />
+    <div className="h-dvh relative overflow-hidden">
+      {/* Floats on top of the feed instead of taking its own row, so every
+          card gets the full viewport height and the vote buttons never end
+          up below the fold. */}
+      <div className="absolute top-0 inset-x-0 z-20">
+        <div
+          className="absolute inset-x-0 top-0 h-44 pointer-events-none"
+          style={{ background: "linear-gradient(to bottom, rgba(0,0,0,0.6), rgba(0,0,0,0))" }}
+        />
+        <div className="relative">
+          <Header overlay />
+          <CategoryChips active={activeCat} onChange={handleCategoryChange} overlay />
+        </div>
+      </div>
       <div
         ref={scrollRef}
-        className="flex-1 min-h-0 overflow-y-scroll snap-y snap-mandatory overscroll-y-contain touch-pan-y scrollbar-none"
+        className="h-full w-full overflow-y-scroll snap-y snap-mandatory overscroll-y-contain touch-pan-y scrollbar-none"
       >
         {loadingCategory ? (
           <FeedSkeleton />

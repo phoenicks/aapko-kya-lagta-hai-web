@@ -276,7 +276,7 @@ export default function VoteCard({ post, index, active, cardRef, onAdvance }) {
           style={{ background: "linear-gradient(to top, rgba(0,0,0,0.78), rgba(0,0,0,0))" }}
         />
         {category && (
-          <div className="absolute top-[calc(env(safe-area-inset-top)+0.875rem)] left-3.5 text-white text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full backdrop-blur-sm" style={{ background: "rgba(0,0,0,0.45)" }}>
+          <div className="absolute top-[calc(env(safe-area-inset-top)+7rem)] left-3.5 text-white text-[11px] font-bold uppercase tracking-wide px-2.5 py-1 rounded-full backdrop-blur-sm" style={{ background: "rgba(0,0,0,0.45)" }}>
             {lang === "en" ? category.label_en : category.label_hi}
           </div>
         )}
