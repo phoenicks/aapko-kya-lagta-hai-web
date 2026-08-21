@@ -22,14 +22,12 @@ async function getActivePosts() {
 export default async function HomePage() {
   const posts = await getActivePosts();
 
-  return (
-    <AppShell>
+    return (
+    <AppShell hideHeader>
       <main>
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 pb-2 pt-1">
-          <p className="text-sm text-ink-secondary">
-            Red flags, cursed rooms, fit checks, AI chaos. Swipe 👍 or 👎 and see if the internet agrees with you.
-          </p>
-        </div>
+        <p className="sr-only">
+          Red flags, cursed rooms, fit checks, AI chaos. Swipe 👍 or 👎 and see if the internet agrees with you.
+        </p>
         <HomeFeed initialPosts={posts} />
         <footer className="max-w-3xl mx-auto px-4 sm:px-6 py-10 text-center text-xs text-ink-muted">
           Aapko Kya Lagta Hai — आपको क्या लगता है? · Images sourced from Unsplash &amp; Pexels, credited on each debate page.
