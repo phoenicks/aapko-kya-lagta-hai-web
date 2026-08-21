@@ -82,6 +82,14 @@ returns table (up_count integer, down_count integer) as $$
 declare
   existing_direction text;
 begin
+  -- `up_count`/`down_count` are also this function's OUT parameter names
+  -- (from `returns table (...)`), which shadow the identically-named
+  -- columns on `posts`. An unqualified `up_count` inside the UPDATEs below
+  -- is therefore ambiguous between the OUT parameter and the table column
+  -- ("column reference \"up_count\" is ambiguous") — every vote hit this
+  -- and errored out. Qualifying every reference with `posts.` resolves it
+  -- explicitly, in favor of the table column, which is what we want.
+
   select direction into existing_direction
   from votes
   where post_id = p_post_id and session_id = p_session_id;
@@ -91,9 +99,9 @@ begin
     values (p_post_id, p_session_id, p_direction);
 
     if p_direction = 'up' then
-      update posts set up_count = up_count + 1 where id = p_post_id;
+      update posts set up_count = posts.up_count + 1 where id = p_post_id;
     else
-      update posts set down_count = down_count + 1 where id = p_post_id;
+      update posts set down_count = posts.down_count + 1 where id = p_post_id;
     end if;
 
   elsif existing_direction <> p_direction then
@@ -101,9 +109,9 @@ begin
     where post_id = p_post_id and session_id = p_session_id;
 
     if p_direction = 'up' then
-      update posts set up_count = up_count + 1, down_count = greatest(down_count - 1, 0) where id = p_post_id;
+      update posts set up_count = posts.up_count + 1, down_count = greatest(posts.down_count - 1, 0) where id = p_post_id;
     else
-      update posts set down_count = down_count + 1, up_count = greatest(up_count - 1, 0) where id = p_post_id;
+      update posts set down_count = posts.down_count + 1, up_count = greatest(posts.up_count - 1, 0) where id = p_post_id;
     end if;
   end if;
   -- if existing_direction = p_direction, it's a no-op (already voted this way)
