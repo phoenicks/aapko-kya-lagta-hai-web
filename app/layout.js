@@ -9,12 +9,14 @@ export const metadata = {
     template: "%s — Aapko Kya Lagta Hai",
   },
   description:
-    "Aapko Kya Lagta Hai — a new image every day, one simple question: aapko kya lagta hai? Vote thumbs up or down, see how the crowd feels, and join the debate.",
+    "Red flags, cursed rooms, fit checks, AI chaos — a fresh debate every day. Swipe 👍 or 👎, see if the internet agrees with you, and roast it in the comments.",
   keywords: [
     "Aapko Kya Lagta Hai",
     "aapko kya lagta hai",
     "आपको क्या लगता है",
-    "image voting app",
+    "red flag or nah",
+    "meme voting app",
+    "gen z poll app",
     "daily debate",
     "thumbs up thumbs down poll",
     "opinion app India",
@@ -24,14 +26,14 @@ export const metadata = {
     siteName: "Aapko Kya Lagta Hai",
     title: "Aapko Kya Lagta Hai — आपको क्या लगता है?",
     description:
-      "A new image every day. Vote 👍 or 👎, see what everyone else thinks, and join the debate.",
+      "Red flags, cursed rooms, fit checks, AI chaos. Swipe 👍 or 👎 and see if the internet agrees with you.",
     url: siteUrl,
   },
   twitter: {
     card: "summary_large_image",
     title: "Aapko Kya Lagta Hai — आपको क्या लगता है?",
     description:
-      "A new image every day. Vote 👍 or 👎, see what everyone else thinks, and join the debate.",
+      "Red flags, cursed rooms, fit checks, AI chaos. Swipe 👍 or 👎 and see if the internet agrees with you.",
   },
   icons: {
     icon: "/favicon.ico",
