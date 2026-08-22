@@ -1,0 +1,16 @@
+{
+	"appId": "com.aapkokyalagtahai.app",
+	"appName": "Aapko Kya Lagta Hai",
+	"webDir": "www",
+	"server": {
+		"url": "https://aapkokyalagtahai.com",
+		"androidScheme": "https",
+		"allowNavigation": [
+			"aapkokyalagtahai.com",
+			"*.aapkokyalagtahai.com"
+		]
+	},
+	"android": {
+		"backgroundColor": "#0d0d0d"
+	}
+}

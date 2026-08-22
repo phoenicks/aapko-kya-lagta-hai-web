@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">Aapko Kya Lagta Hai</string>
+    <string name="title_activity_main">Aapko Kya Lagta Hai</string>
+    <string name="package_name">com.aapkokyalagtahai.app</string>
+    <string name="custom_url_scheme">com.aapkokyalagtahai.app</string>
+</resources>
