@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import InsightsSection from "./InsightsSection";
 
 const STAT_LABELS = [
   { key: "activeUsers24h", label: "Active users (24h)" },
@@ -15,6 +16,7 @@ export default function AdminDashboard() {
   const router = useRouter();
   const [stats, setStats] = useState(null);
   const [posts, setPosts] = useState([]);
+  const [insights, setInsights] = useState(null);
   const [loading, setLoading] = useState(true);
   const [fetching, setFetching] = useState(false);
   const [fetchMsg, setFetchMsg] = useState("");
@@ -22,12 +24,14 @@ export default function AdminDashboard() {
 
   async function load() {
     setLoading(true);
-    const [statsRes, postsRes] = await Promise.all([
+    const [statsRes, postsRes, insightsRes] = await Promise.all([
       fetch("/api/admin/stats"),
       fetch("/api/admin/posts"),
+      fetch("/api/admin/insights"),
     ]);
     if (statsRes.ok) setStats(await statsRes.json());
     if (postsRes.ok) setPosts((await postsRes.json()).posts || []);
+    if (insightsRes.ok) setInsights(await insightsRes.json());
     setLoading(false);
   }
 
@@ -125,6 +129,8 @@ export default function AdminDashboard() {
           </div>
         ))}
       </div>
+
+      <InsightsSection data={insights} loading={loading} />
 
       <h2 className="text-sm font-bold uppercase tracking-wide text-ink-muted mb-3">
         Posts
