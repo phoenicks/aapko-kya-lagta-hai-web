@@ -5,6 +5,7 @@ import Header from "./Header";
 import CategoryChips from "./CategoryChips";
 import VoteCard from "./VoteCard";
 import EndOfFeedCard from "./EndOfFeedCard";
+import AdSlotCard from "./AdSlotCard";
 import { useLangTheme } from "./LangThemeProvider";
 import { STR } from "@/lib/i18n";
 
@@ -13,6 +14,9 @@ const PAGE_SIZE = 8;
 // sentinel — big enough that the next page is usually ready before the
 // user actually scrolls that far.
 const PREFETCH_AHEAD = 3;
+// Every Nth real debate, an ad slot is interleaved into the feed (see
+// AdSlotCard — it's a no-op with no ad network configured yet).
+const AD_EVERY_N = 6;
 
 async function fetchPostsPage({ category, cursor, signal }) {
   const params = new URLSearchParams({ category, limit: String(PAGE_SIZE) });
@@ -228,6 +232,10 @@ export default function HomeFeed({ initialPosts, initialCursor, initialHasMore }
                   }}
                   onAdvance={() => goToNext(i)}
                 />
+                {/* Purely a rendering-layer insertion — not part of `posts`,
+                    so it never touches cardRefs/data-index and can't throw
+                    off arrow-key nav or the active-card observer above. */}
+                {(i + 1) % AD_EVERY_N === 0 && <AdSlotCard key={`ad-${post.id}`} />}
               </Fragment>
             ))}
             {!hasMore && <EndOfFeedCard variant="end" />}

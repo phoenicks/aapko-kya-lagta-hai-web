@@ -48,13 +48,16 @@ export default function TermsPage() {
 
             <H2>Comments and content you post</H2>
             <p>
-              When you post a comment, you&rsquo;re solely responsible for it, and you grant us
-              a non-exclusive, royalty-free license to display it on the site (and remove it,
-              at our discretion). Please don&rsquo;t post anything that is illegal, harassing,
+              When you post a comment or submit your own debate (prompt + image link), you&rsquo;re
+              solely responsible for it, and you grant us a non-exclusive, royalty-free license to
+              display it on the site (and remove it, at our discretion). Submitted debates are
+              reviewed before they go live, and we&rsquo;re not obligated to publish any
+              submission. Please don&rsquo;t post or submit anything that is illegal, harassing,
               hateful, sexually explicit, involves minors in any inappropriate way, impersonates
-              someone else, spams, or infringes someone else&rsquo;s rights. We can hide or
-              remove any comment, and can limit or end anyone&rsquo;s access to the site, at any
-              time, without needing to explain why.
+              someone else, spams, or infringes someone else&rsquo;s rights — including images you
+              don&rsquo;t have the right to use. We can hide or remove any comment or submitted
+              debate, and can limit or end anyone&rsquo;s access to the site, at any time, without
+              needing to explain why.
             </p>
 
             <H2>Acceptable use</H2>
@@ -63,6 +66,14 @@ export default function TermsPage() {
               for others; try to manipulate vote counts (bots, vote farms, script-driven
               spam-voting); attempt to bypass any security or rate-limiting measure; or use the
               site to distribute malware or attack anyone.
+            </p>
+
+            <H2>Affiliate links and ads</H2>
+            <p>
+              Some debate cards include a &ldquo;Shop it&rdquo; link to a product on Amazon. As
+              an Amazon Associate, we earn from qualifying purchases made through those links, at
+              no extra cost to you. Any such card is clearly marked. We may also show
+              advertising elsewhere on the site.
             </p>
 
             <H2>Debate content and images</H2>

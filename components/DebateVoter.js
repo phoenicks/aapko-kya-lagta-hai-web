@@ -6,7 +6,7 @@ import { useVote } from "@/lib/useVote";
 import { useLangTheme } from "./LangThemeProvider";
 import { STR } from "@/lib/i18n";
 import { findCategory } from "@/lib/categories";
-import { buildShareCardDataUrl } from "@/lib/shareCard";
+import { buildShareCardDataUrl, shareResultImage } from "@/lib/shareCard";
 import { burstConfetti, hapticTap } from "@/lib/confetti";
 import SplitBar from "./SplitBar";
 import ShareButtons from "./ShareButtons";
@@ -38,11 +38,7 @@ export default function DebateVoter({ post, shareUrl }) {
       pctUp: vote.pctUp,
       pctDown: vote.pctDown,
     });
-    if (!dataUrl) return;
-    const a = document.createElement("a");
-    a.href = dataUrl;
-    a.download = "aapkokyalagtahai-result.png";
-    a.click();
+    await shareResultImage({ dataUrl, text: `${post.prompt_en} — ${t.tagline}` });
   }
 
   return (
@@ -98,6 +94,23 @@ export default function DebateVoter({ post, shareUrl }) {
           👎
         </button>
       </div>
+
+      {post.affiliate_url && (
+        <div className="mt-4 text-center">
+          <a
+            href={post.affiliate_url}
+            target="_blank"
+            rel="sponsored noopener noreferrer"
+            className="inline-flex items-center gap-1.5 rounded-full px-5 py-2.5 text-sm font-bold"
+            style={{ background: "var(--text-primary)", color: "var(--surface-1)" }}
+          >
+            🛍️ Shop it on Amazon
+          </a>
+          <p className="text-[11px] text-ink-muted mt-1.5">
+            As an Amazon Associate, we earn from qualifying purchases.
+          </p>
+        </div>
+      )}
 
       {post.image_credit_name && (
         <p className="text-center text-[11px] text-ink-muted mt-3">

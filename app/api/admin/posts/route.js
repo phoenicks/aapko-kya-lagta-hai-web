@@ -8,7 +8,9 @@ export async function GET() {
   const admin = getSupabaseAdmin();
   const { data, error } = await admin
     .from("posts")
-    .select("id, slug, category, prompt_en, image_url, status, up_count, down_count, created_at")
+    .select(
+      "id, slug, category, prompt_en, prompt_hi, image_url, status, up_count, down_count, created_at, submitted_by_session, affiliate_url"
+    )
     .order("created_at", { ascending: false })
     .limit(200);
 

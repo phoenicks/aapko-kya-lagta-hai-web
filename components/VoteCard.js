@@ -7,7 +7,7 @@ import { useVote } from "@/lib/useVote";
 import { useLangTheme } from "./LangThemeProvider";
 import { STR } from "@/lib/i18n";
 import { findCategory } from "@/lib/categories";
-import { buildShareCardDataUrl } from "@/lib/shareCard";
+import { buildShareCardDataUrl, shareResultImage } from "@/lib/shareCard";
 import { burstConfetti, hapticTap } from "@/lib/confetti";
 import InlineResultOverlay from "./InlineResultOverlay";
 
@@ -237,11 +237,7 @@ export default function VoteCard({ post, index, active, cardRef, onAdvance }) {
       pctUp: vote.pctUp,
       pctDown: vote.pctDown,
     });
-    if (!dataUrl) return;
-    const a = document.createElement("a");
-    a.href = dataUrl;
-    a.download = "aapkokyalagtahai-result.png";
-    a.click();
+    await shareResultImage({ dataUrl, text: `${post.prompt_en} — ${t.tagline}` });
   }
 
   const debateUrl = `/debate/${post.slug}`;
@@ -302,6 +298,21 @@ export default function VoteCard({ post, index, active, cardRef, onAdvance }) {
           </div>
         )}
       </div>
+
+      {/* Outside the drag-handled div on purpose, same as the 💬 comments
+          link below — a nested <a> inside dragRef risks a tap getting eaten
+          by the swipe pointer handlers instead of navigating. */}
+      {post.affiliate_url && (
+        <a
+          href={post.affiliate_url}
+          target="_blank"
+          rel="sponsored noopener noreferrer"
+          className="absolute top-[calc(env(safe-area-inset-top)+7rem)] right-3.5 z-10 text-white text-[11px] font-bold px-3 py-1.5 rounded-full backdrop-blur-sm flex items-center gap-1"
+          style={{ background: "rgba(0,0,0,0.55)" }}
+        >
+          🛍️ Shop it
+        </a>
+      )}
 
       {showOverlay ? (
         <InlineResultOverlay

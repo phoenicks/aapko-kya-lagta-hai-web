@@ -1,6 +1,10 @@
+import Script from "next/script";
 import "./globals.css";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://aapkokyalagtahai.com";
+// Unset until AdSense (or whichever network) approves the site — see
+// components/AdSlotCard.js, which no-ops in the feed until this is set too.
+const adsenseClientId = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID;
 
 export const metadata = {
   metadataBase: new URL(siteUrl),
@@ -38,6 +42,9 @@ export const metadata = {
   icons: {
     icon: "/favicon.ico",
   },
+  // Google's site-ownership signal for AdSense — only emitted once a
+  // publisher id is configured (see NEXT_PUBLIC_ADSENSE_CLIENT_ID below).
+  ...(adsenseClientId ? { other: { "google-adsense-account": adsenseClientId } } : {}),
 };
 
 export const viewport = {
@@ -53,7 +60,17 @@ export const viewport = {
 export default function RootLayout({ children }) {
   return (
     <html lang="en">
-      <body className="font-sans min-h-screen">{children}</body>
+      <body className="font-sans min-h-screen">
+        {children}
+        {adsenseClientId && (
+          <Script
+            async
+            src={`https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=${adsenseClientId}`}
+            crossOrigin="anonymous"
+            strategy="afterInteractive"
+          />
+        )}
+      </body>
     </html>
   );
 }

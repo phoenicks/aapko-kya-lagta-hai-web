@@ -3,6 +3,8 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import InsightsSection from "./InsightsSection";
+import PendingSubmissions from "./PendingSubmissions";
+import AddProductCard from "./AddProductCard";
 
 const STAT_LABELS = [
   { key: "activeUsers24h", label: "Active users (24h)" },
@@ -21,6 +23,7 @@ export default function AdminDashboard() {
   const [fetching, setFetching] = useState(false);
   const [fetchMsg, setFetchMsg] = useState("");
   const [refreshingId, setRefreshingId] = useState(null);
+  const [decidingId, setDecidingId] = useState(null);
 
   async function load() {
     setLoading(true);
@@ -47,6 +50,20 @@ export default function AdminDashboard() {
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ id: post.id, status: nextStatus }),
     });
+  }
+
+  async function decideSubmission(post, status) {
+    setDecidingId(post.id);
+    try {
+      setPosts((ps) => ps.map((p) => (p.id === post.id ? { ...p, status } : p)));
+      await fetch("/api/admin/posts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: post.id, status }),
+      });
+    } finally {
+      setDecidingId(null);
+    }
   }
 
   async function refreshImage(post) {
@@ -130,6 +147,16 @@ export default function AdminDashboard() {
         ))}
       </div>
 
+      {!loading && (
+        <PendingSubmissions
+          posts={posts.filter((p) => p.status === "pending")}
+          onDecide={decideSubmission}
+          decidingId={decidingId}
+        />
+      )}
+
+      <AddProductCard onAdded={load} />
+
       <InsightsSection data={insights} loading={loading} />
 
       <h2 className="text-sm font-bold uppercase tracking-wide text-ink-muted mb-3">
@@ -153,7 +180,7 @@ export default function AdminDashboard() {
               </tr>
             </thead>
             <tbody>
-              {posts.map((post) => (
+              {posts.filter((post) => post.status !== "pending").map((post) => (
                 <tr key={post.id} className="border-t" style={{ borderColor: "var(--border)" }}>
                   <td className="p-3">
                     {/* eslint-disable-next-line @next/next/no-img-element */}
