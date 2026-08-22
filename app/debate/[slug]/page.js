@@ -5,6 +5,7 @@ import AppShell from "@/components/AppShell";
 import DebateVoter from "@/components/DebateVoter";
 import CommentSection from "@/components/CommentSection";
 import DebateGrid from "@/components/DebateGrid";
+import Footer from "@/components/Footer";
 
 export const revalidate = 120;
 
@@ -124,6 +125,7 @@ export default async function DebatePage({ params }) {
         </p>
         <CommentSection postId={post.id} initialComments={comments} />
         <DebateGrid posts={morePosts} heading="More in this category" />
+        <Footer />
       </main>
     </AppShell>
   );

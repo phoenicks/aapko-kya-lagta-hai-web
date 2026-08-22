@@ -2,6 +2,7 @@
 
 import { useLangTheme } from "./LangThemeProvider";
 import { STR } from "@/lib/i18n";
+import Footer from "./Footer";
 
 // A real, full-screen, snap-aligned section shown at the end of the
 // infinite-scroll feed — either "you've reached the end of what's loaded"
@@ -25,9 +26,18 @@ export default function EndOfFeedCard({ variant = "end" }) {
       </p>
       {!isEmpty && <p className="text-sm text-ink-secondary">{t.checkBackTomorrow}</p>}
       {!isEmpty && (
-        <p className="text-xs text-ink-muted mt-8 max-w-xs">
-          Images sourced from Unsplash &amp; Pexels, credited on each debate page.
-        </p>
+        <>
+          <p className="text-xs text-ink-muted mt-8 max-w-xs">
+            Images sourced from Unsplash &amp; Pexels, credited on each debate page.
+          </p>
+          {/* This card lives inside the feed's own scroll container, so
+              (unlike the page-level footer) it's actually reachable by
+              swiping/scrolling all the way through — the right place for
+              About/Privacy/Terms/Contact to live on the homepage. */}
+          <div className="mt-4">
+            <Footer compact />
+          </div>
+        </>
       )}
     </div>
   );

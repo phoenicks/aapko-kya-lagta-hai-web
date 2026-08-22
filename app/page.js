@@ -1,6 +1,7 @@
 import { supabase } from "@/lib/supabaseClient";
 import AppShell from "@/components/AppShell";
 import HomeFeed from "@/components/HomeFeed";
+import Footer from "@/components/Footer";
 
 export const revalidate = 300; // refresh the server-rendered list every 5 minutes
 
@@ -29,9 +30,12 @@ export default async function HomePage() {
           Red flags, cursed rooms, fit checks, AI chaos. Swipe 👍 or 👎 and see if the internet agrees with you.
         </p>
         <HomeFeed initialPosts={posts} />
-        <footer className="max-w-3xl mx-auto px-4 sm:px-6 py-10 text-center text-xs text-ink-muted">
-          Aapko Kya Lagta Hai — आपको क्या लगता है? · Images sourced from Unsplash &amp; Pexels, credited on each debate page.
-        </footer>
+        {/* Note: HomeFeed's scroll container uses overscroll-y-contain, so
+            normal scrolling can't chain from the end of the feed down into
+            this — it's not reachable by swipe/scroll on mobile. It's kept
+            for non-JS/keyboard access; the links visitors actually reach
+            while scrolling the feed live in EndOfFeedCard instead. */}
+        <Footer />
       </main>
     </AppShell>
   );

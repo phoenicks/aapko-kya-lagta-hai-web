@@ -3,6 +3,7 @@ import { supabase } from "@/lib/supabaseClient";
 import { findCategory, CATEGORIES } from "@/lib/categories";
 import AppShell from "@/components/AppShell";
 import DebateGrid from "@/components/DebateGrid";
+import Footer from "@/components/Footer";
 
 export const revalidate = 300;
 
@@ -52,6 +53,7 @@ export default async function CategoryPage({ params }) {
             No debates in this category yet — check back soon.
           </p>
         )}
+        <Footer />
       </main>
     </AppShell>
   );
