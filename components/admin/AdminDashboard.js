@@ -5,6 +5,7 @@ import { useRouter } from "next/navigation";
 import InsightsSection from "./InsightsSection";
 import PendingSubmissions from "./PendingSubmissions";
 import AddProductCard from "./AddProductCard";
+import EditPostRow from "./EditPostRow";
 
 const STAT_LABELS = [
   { key: "activeUsers24h", label: "Active users (24h)" },
@@ -24,6 +25,10 @@ export default function AdminDashboard() {
   const [fetchMsg, setFetchMsg] = useState("");
   const [refreshingId, setRefreshingId] = useState(null);
   const [decidingId, setDecidingId] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [savingEdit, setSavingEdit] = useState(false);
+  const [deletingId, setDeletingId] = useState(null);
+  const [rowError, setRowError] = useState({ id: null, message: "" });
 
   async function load() {
     setLoading(true);
@@ -42,27 +47,115 @@ export default function AdminDashboard() {
     load();
   }, []);
 
+  // Shared by the Enable/Disable toggle and the Pending-submission
+  // Approve/Reject buttons: apply the change optimistically, but — unlike
+  // the old version of this function — actually check whether the save
+  // succeeded, and put the row back the way it was (with a visible error)
+  // if it didn't. Without that check, a failed save silently looked
+  // identical to a successful one, which is exactly how a "disabled" post
+  // was still showing live on the site: the dashboard said Disabled, the
+  // database never got the update.
+  async function updateStatus(post, nextStatus) {
+    setPosts((ps) => ps.map((p) => (p.id === post.id ? { ...p, status: nextStatus } : p)));
+    setRowError({ id: null, message: "" });
+    try {
+      const res = await fetch("/api/admin/posts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id: post.id, status: nextStatus }),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setPosts((ps) => ps.map((p) => (p.id === post.id ? { ...p, status: post.status } : p)));
+        setRowError({ id: post.id, message: data.error || "Couldn't save — try again" });
+        return false;
+      }
+      return true;
+    } catch {
+      setPosts((ps) => ps.map((p) => (p.id === post.id ? { ...p, status: post.status } : p)));
+      setRowError({ id: post.id, message: "Couldn't reach the server — try again" });
+      return false;
+    }
+  }
+
   async function toggleStatus(post) {
     const nextStatus = post.status === "active" ? "disabled" : "active";
-    setPosts((ps) => ps.map((p) => (p.id === post.id ? { ...p, status: nextStatus } : p)));
-    await fetch("/api/admin/posts", {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ id: post.id, status: nextStatus }),
-    });
+    await updateStatus(post, nextStatus);
   }
 
   async function decideSubmission(post, status) {
     setDecidingId(post.id);
     try {
-      setPosts((ps) => ps.map((p) => (p.id === post.id ? { ...p, status } : p)));
-      await fetch("/api/admin/posts", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id: post.id, status }),
-      });
+      await updateStatus(post, status);
     } finally {
       setDecidingId(null);
+    }
+  }
+
+  function startEdit(post) {
+    setRowError({ id: null, message: "" });
+    setEditingId(post.id);
+  }
+
+  async function saveEdit(post, draft) {
+    setSavingEdit(true);
+    setRowError({ id: null, message: "" });
+    try {
+      const res = await fetch("/api/admin/posts", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          id: post.id,
+          promptEn: draft.promptEn,
+          promptHi: draft.promptHi,
+          category: draft.category,
+          imageUrl: draft.imageUrl,
+          affiliateUrl: draft.affiliateUrl,
+        }),
+      });
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        setRowError({ id: post.id, message: data.error || "Couldn't save — try again" });
+        return;
+      }
+      setPosts((ps) =>
+        ps.map((p) =>
+          p.id === post.id
+            ? {
+                ...p,
+                prompt_en: draft.promptEn,
+                prompt_hi: draft.promptHi,
+                category: draft.category,
+                image_url: draft.imageUrl,
+                affiliate_url: draft.affiliateUrl || null,
+              }
+            : p
+        )
+      );
+      setEditingId(null);
+    } finally {
+      setSavingEdit(false);
+    }
+  }
+
+  async function deletePost(post) {
+    const confirmed = confirm(
+      `Permanently delete "${post.prompt_en}"? This also deletes its votes and comments and can't be undone.`
+    );
+    if (!confirmed) return;
+
+    setDeletingId(post.id);
+    setRowError({ id: null, message: "" });
+    try {
+      const res = await fetch(`/api/admin/posts?id=${encodeURIComponent(post.id)}`, { method: "DELETE" });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        setRowError({ id: post.id, message: data.error || "Couldn't delete — try again" });
+        return;
+      }
+      setPosts((ps) => ps.filter((p) => p.id !== post.id));
+    } finally {
+      setDeletingId(null);
     }
   }
 
@@ -177,62 +270,99 @@ export default function AdminDashboard() {
                 <th className="p-3">Status</th>
                 <th className="p-3">Enable / disable</th>
                 <th className="p-3">Image</th>
+                <th className="p-3">Edit</th>
               </tr>
             </thead>
             <tbody>
-              {posts.filter((post) => post.status !== "pending").map((post) => (
-                <tr key={post.id} className="border-t" style={{ borderColor: "var(--border)" }}>
-                  <td className="p-3">
-                    {/* eslint-disable-next-line @next/next/no-img-element */}
-                    <img src={post.image_url} alt="" className="w-12 h-16 object-cover rounded-lg" />
-                  </td>
-                  <td className="p-3 max-w-xs">
-                    <a
-                      href={`/debate/${post.slug}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="underline"
-                    >
-                      {post.prompt_en}
-                    </a>
-                  </td>
-                  <td className="p-3 text-ink-secondary">{post.category}</td>
-                  <td className="p-3 text-ink-secondary">
-                    {post.up_count} / {post.down_count}
-                  </td>
-                  <td className="p-3">
-                    <span
-                      className="px-2 py-0.5 rounded-full text-xs font-bold"
-                      style={{
-                        background: post.status === "active" ? "rgba(42,120,214,0.15)" : "rgba(227,73,72,0.15)",
-                        color: post.status === "active" ? "var(--up-color)" : "var(--down-color)",
-                      }}
-                    >
-                      {post.status}
-                    </span>
-                  </td>
-                  <td className="p-3">
-                    <button
-                      onClick={() => toggleStatus(post)}
-                      className="rounded-full px-3 py-1.5 text-xs font-bold"
-                      style={{ background: "var(--chip-bg)", border: "1px solid var(--border)" }}
-                    >
-                      {post.status === "active" ? "Disable" : "Enable"}
-                    </button>
-                  </td>
-                  <td className="p-3">
-                    <button
-                      onClick={() => refreshImage(post)}
-                      disabled={refreshingId === post.id}
-                      className="rounded-full px-3 py-1.5 text-xs font-bold disabled:opacity-50"
-                      style={{ background: "var(--chip-bg)", border: "1px solid var(--border)" }}
-                      title="Pull a different Unsplash/Pexels image for this post, keeping its prompt, votes, and comments"
-                    >
-                      {refreshingId === post.id ? "Fetching…" : "🔄 New image"}
-                    </button>
-                  </td>
-                </tr>
-              ))}
+              {posts.filter((post) => post.status !== "pending").map((post) =>
+                editingId === post.id ? (
+                  <EditPostRow
+                    key={post.id}
+                    post={post}
+                    colSpan={8}
+                    saving={savingEdit}
+                    error={rowError.id === post.id ? rowError.message : ""}
+                    onSave={(draft) => saveEdit(post, draft)}
+                    onCancel={() => setEditingId(null)}
+                  />
+                ) : (
+                  <tr key={post.id} className="border-t" style={{ borderColor: "var(--border)" }}>
+                    <td className="p-3">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={post.image_url} alt="" className="w-12 h-16 object-cover rounded-lg" />
+                    </td>
+                    <td className="p-3 max-w-xs">
+                      <a
+                        href={`/debate/${post.slug}`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="underline"
+                      >
+                        {post.prompt_en}
+                      </a>
+                      {rowError.id === post.id && (
+                        <p className="text-xs mt-1" style={{ color: "var(--down-color)" }}>
+                          {rowError.message}
+                        </p>
+                      )}
+                    </td>
+                    <td className="p-3 text-ink-secondary">{post.category}</td>
+                    <td className="p-3 text-ink-secondary">
+                      {post.up_count} / {post.down_count}
+                    </td>
+                    <td className="p-3">
+                      <span
+                        className="px-2 py-0.5 rounded-full text-xs font-bold"
+                        style={{
+                          background: post.status === "active" ? "rgba(42,120,214,0.15)" : "rgba(227,73,72,0.15)",
+                          color: post.status === "active" ? "var(--up-color)" : "var(--down-color)",
+                        }}
+                      >
+                        {post.status}
+                      </span>
+                    </td>
+                    <td className="p-3">
+                      <button
+                        onClick={() => toggleStatus(post)}
+                        className="rounded-full px-3 py-1.5 text-xs font-bold"
+                        style={{ background: "var(--chip-bg)", border: "1px solid var(--border)" }}
+                      >
+                        {post.status === "active" ? "Disable" : "Enable"}
+                      </button>
+                    </td>
+                    <td className="p-3">
+                      <button
+                        onClick={() => refreshImage(post)}
+                        disabled={refreshingId === post.id}
+                        className="rounded-full px-3 py-1.5 text-xs font-bold disabled:opacity-50"
+                        style={{ background: "var(--chip-bg)", border: "1px solid var(--border)" }}
+                        title="Pull a different Unsplash/Pexels image for this post, keeping its prompt, votes, and comments"
+                      >
+                        {refreshingId === post.id ? "Fetching…" : "🔄 New image"}
+                      </button>
+                    </td>
+                    <td className="p-3">
+                      <div className="flex gap-2">
+                        <button
+                          onClick={() => startEdit(post)}
+                          className="rounded-full px-3 py-1.5 text-xs font-bold"
+                          style={{ background: "var(--chip-bg)", border: "1px solid var(--border)" }}
+                        >
+                          ✏️ Edit
+                        </button>
+                        <button
+                          onClick={() => deletePost(post)}
+                          disabled={deletingId === post.id}
+                          className="rounded-full px-3 py-1.5 text-xs font-bold disabled:opacity-50"
+                          style={{ background: "rgba(227,73,72,0.12)", color: "var(--down-color)" }}
+                        >
+                          {deletingId === post.id ? "…" : "🗑 Delete"}
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                )
+              )}
             </tbody>
           </table>
         </div>

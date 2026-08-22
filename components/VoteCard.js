@@ -185,7 +185,24 @@ export default function VoteCard({ post, index, active, cardRef, onAdvance }) {
     const wasDragging = drag.current.dragging;
     drag.current.dragging = false;
     unlockAxis();
-    if (!wasDragging || !wasHorizontal || showOverlay) return;
+
+    if (showOverlay) return;
+
+    if (!wasDragging || !wasHorizontal) {
+      // Not a committed horizontal swipe. `wasDragging` still being true
+      // here (rather than having been reset mid-move) is specifically the
+      // signature of a plain tap with essentially no movement — a vertical
+      // scroll attempt already resets it to false itself inside
+      // onPointerMove, so this branch can't be confused with someone just
+      // trying to scroll the feed. For a product card, that's the "open
+      // Amazon" tap — the whole card is the target, not just the small
+      // pill badge, since that's what people actually expect to happen
+      // when they tap a product photo.
+      if (wasDragging && post.affiliate_url) {
+        window.open(post.affiliate_url, "_blank", "noopener,noreferrer");
+      }
+      return;
+    }
 
     if (dragRef.current) dragRef.current.style.transition = "transform 0.35s cubic-bezier(.2,.9,.3,1)";
     if (Math.abs(drag.current.dx) > 90) {
@@ -196,6 +213,15 @@ export default function VoteCard({ post, index, active, cardRef, onAdvance }) {
       if (stampDownRef.current) stampDownRef.current.style.opacity = 0;
     }
     drag.current.dx = 0;
+  }
+
+  // Separate from onPointerUp on purpose — a pointercancel means the
+  // gesture was interrupted/hijacked (e.g. the browser took over for its
+  // own scrolling), not a deliberate release, so it should never be able to
+  // trigger the tap-to-shop navigation above.
+  function onPointerCancel() {
+    drag.current.dragging = false;
+    unlockAxis();
   }
 
   function finishSwipe(direction) {
@@ -254,9 +280,13 @@ export default function VoteCard({ post, index, active, cardRef, onAdvance }) {
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={onPointerUp}
+        onPointerCancel={onPointerCancel}
         className="absolute inset-0 overflow-hidden select-none"
-        style={{ touchAction: "pan-y", background: "var(--neutral-mid)", cursor: showOverlay ? "default" : "grab" }}
+        style={{
+          touchAction: "pan-y",
+          background: "var(--neutral-mid)",
+          cursor: showOverlay ? "default" : post.affiliate_url ? "pointer" : "grab",
+        }}
       >
         <Image
           src={post.image_url}
@@ -295,6 +325,9 @@ export default function VoteCard({ post, index, active, cardRef, onAdvance }) {
           <div className="absolute inset-x-0 bottom-0 p-5 pb-[calc(env(safe-area-inset-bottom)+6rem)] text-white pointer-events-none">
             <p className="text-xl font-bold leading-snug">{post.prompt_en}</p>
             <p className="text-sm opacity-80 mt-1">{post.prompt_hi}</p>
+            {post.affiliate_url && (
+              <p className="text-xs opacity-70 mt-1.5">🛍️ Tap the photo to shop this on Amazon</p>
+            )}
           </div>
         )}
       </div>
