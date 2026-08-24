@@ -23,6 +23,10 @@ jobs:
       - name: Set up Android SDK
         uses: android-actions/setup-android@v3
 
+      - name: Install npm dependencies
+        working-directory: android-app
+        run: npm ci
+
       - name: Make gradlew executable
         run: chmod +x android-app/android/gradlew
 
