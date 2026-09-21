@@ -3,6 +3,13 @@ import { CATEGORIES } from "@/lib/categories";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://aapkokyalagtahai.com";
 
+// Without this, Next statically generates sitemap.xml once at build time
+// and freezes it there until the next deploy — so new debates published
+// daily by the cron job (which only writes to the database, no redeploy)
+// never show up in it. Regenerating hourly keeps it caught up with actual
+// publishing without hitting the database on every single crawl.
+export const revalidate = 3600;
+
 export default async function sitemap() {
   const { data: posts } = await supabase
     .from("posts")
@@ -18,6 +25,12 @@ export default async function sitemap() {
       changeFrequency: "daily",
       priority: 0.7,
     })),
+    { url: `${siteUrl}/submit`, changeFrequency: "monthly", priority: 0.4 },
+    { url: `${siteUrl}/about`, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${siteUrl}/faq`, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${siteUrl}/privacy`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${siteUrl}/terms`, changeFrequency: "yearly", priority: 0.3 },
+    { url: `${siteUrl}/contact`, changeFrequency: "monthly", priority: 0.3 },
   ];
 
   const postEntries = (posts || []).map((p) => ({

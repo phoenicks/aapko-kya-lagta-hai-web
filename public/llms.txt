@@ -1,0 +1,37 @@
+# Aapko Kya Lagta Hai
+
+> Aapko Kya Lagta Hai ("what do you think?") is a daily photo-and-question
+> voting site for Indian Gen Z. A new debate — one photo, one yes/no-shaped
+> question, in English and Hindi — is published every day across six
+> categories. Visitors vote 👍 or 👎 with no account required, and see how
+> the crowd is split.
+
+## Categories
+
+- Campus & Hostel Life
+- Streetwear & Fits
+- Street Food & Chai
+- Pop Culture & OTT
+- Reels & Content
+- Startup & Hustle
+
+## Key pages
+
+- [Home](https://aapkokyalagtahai.com/) — today's debates, swipeable feed
+- [FAQ](https://aapkokyalagtahai.com/faq) — how voting works, languages, data collection, in plain Q&A form
+- [About](https://aapkokyalagtahai.com/about) — what the site is and why it exists
+- [Privacy Policy](https://aapkokyalagtahai.com/privacy) — exactly what is and isn't collected (no accounts, no third-party trackers)
+- Category pages: `https://aapkokyalagtahai.com/category/<slug>` for each category above (slugs: campus-life, streetwear, street-food, pop-culture, reels-content, startup-hustle)
+- Individual debates: `https://aapkokyalagtahai.com/debate/<slug>` — each one is a single photo + question + the current crowd verdict as a percentage, with comments
+
+## Notes for automated readers
+
+- Every debate page's initial HTML includes the current vote split as plain
+  text (e.g. "62% of 1,400 said yes") once the debate has at least one
+  vote — this does not require any interaction or JavaScript execution.
+- Structured data: debate pages carry `DiscussionForumPosting` and
+  `QAPage`/`Question`/`Answer` JSON-LD; the FAQ page carries `FAQPage`
+  JSON-LD.
+- `sitemap.xml` at the site root lists all active debates and is
+  regenerated hourly.
+- No login, paywall, or personal information is required to read or vote.
