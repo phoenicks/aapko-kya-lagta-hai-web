@@ -82,8 +82,21 @@ export default async function DebatePage({ params }) {
 
   const url = `${siteUrl}/debate/${post.slug}`;
   const total = (post.up_count || 0) + (post.down_count || 0);
+  // Server-computed so the verdict is present in the raw HTML response —
+  // most AI/search crawlers don't execute client JS, and the interactive
+  // vote-split bar (DebateVoter/SplitBar) only reveals itself after a real
+  // visitor taps a vote button, so without this a debate could have 2,000
+  // votes and still show a crawler nothing quotable.
+  const pctUp = total > 0 ? Math.round(((post.up_count || 0) / total) * 100) : 0;
+  const pctDown = total > 0 ? 100 - pctUp : 0;
+  const verdictText =
+    total === 0
+      ? null
+      : pctUp >= 50
+      ? `${pctUp}% of ${total} said 👍 yes`
+      : `${pctDown}% of ${total} said 👎 no`;
 
-  const jsonLd = {
+  const discussionJsonLd = {
     "@context": "https://schema.org",
     "@type": "DiscussionForumPosting",
     headline: post.prompt_en,
@@ -111,17 +124,46 @@ export default async function DebatePage({ params }) {
     commentCount: comments.length,
   };
 
+  // Question/Answer shape specifically, alongside the DiscussionForumPosting
+  // above — this is the structured-data pattern answer engines look for
+  // when deciding what to quote for an opinion/verdict query, and it's the
+  // one place the actual crowd percentage appears as literal text.
+  const qaJsonLd = total === 0 ? null : {
+    "@context": "https://schema.org",
+    "@type": "QAPage",
+    mainEntity: {
+      "@type": "Question",
+      name: post.prompt_en,
+      text: post.prompt_hi,
+      answerCount: 1,
+      acceptedAnswer: {
+        "@type": "Answer",
+        text: `${verdictText}, out of ${total} votes.`,
+        upvoteCount: post.up_count || 0,
+      },
+    },
+  };
+
   return (
     <AppShell>
       {/* eslint-disable-next-line react/no-danger */}
       <script
         type="application/ld+json"
-        dangerouslySetInnerHTML={{ __html: JSON.stringify(jsonLd) }}
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(discussionJsonLd) }}
       />
+      {qaJsonLd && (
+        // eslint-disable-next-line react/no-danger
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(qaJsonLd) }}
+        />
+      )}
       <main className="pb-16">
         <DebateVoter post={post} shareUrl={url} />
         <p className="max-w-md mx-auto px-4 sm:px-0 mt-2 text-center text-xs text-ink-muted">
-          {total} people have judged this so far.
+          {total === 0
+            ? "Be the first to judge this one."
+            : `${total} people have judged this so far — ${verdictText}.`}
         </p>
         <CommentSection postId={post.id} initialComments={comments} />
         <DebateGrid posts={morePosts} heading="More in this category" />
