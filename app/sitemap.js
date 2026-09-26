@@ -1,5 +1,6 @@
 import { supabase } from "@/lib/supabaseClient";
 import { CATEGORIES } from "@/lib/categories";
+import { getDigestGroups } from "@/lib/digest";
 
 const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://aapkokyalagtahai.com";
 
@@ -11,12 +12,15 @@ const siteUrl = process.env.NEXT_PUBLIC_SITE_URL || "https://aapkokyalagtahai.co
 export const revalidate = 3600;
 
 export default async function sitemap() {
-  const { data: posts } = await supabase
-    .from("posts")
-    .select("slug, created_at")
-    .eq("status", "active")
-    .order("created_at", { ascending: false })
-    .limit(5000);
+  const [{ data: posts }, digestGroups] = await Promise.all([
+    supabase
+      .from("posts")
+      .select("slug, created_at")
+      .eq("status", "active")
+      .order("created_at", { ascending: false })
+      .limit(5000),
+    getDigestGroups(),
+  ]);
 
   const staticEntries = [
     { url: siteUrl, changeFrequency: "hourly", priority: 1 },
@@ -28,6 +32,7 @@ export default async function sitemap() {
     { url: `${siteUrl}/submit`, changeFrequency: "monthly", priority: 0.4 },
     { url: `${siteUrl}/about`, changeFrequency: "monthly", priority: 0.5 },
     { url: `${siteUrl}/faq`, changeFrequency: "monthly", priority: 0.5 },
+    { url: `${siteUrl}/digest`, changeFrequency: "weekly", priority: 0.5 },
     { url: `${siteUrl}/privacy`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${siteUrl}/terms`, changeFrequency: "yearly", priority: 0.3 },
     { url: `${siteUrl}/contact`, changeFrequency: "monthly", priority: 0.3 },
@@ -40,5 +45,11 @@ export default async function sitemap() {
     priority: 0.8,
   }));
 
-  return [...staticEntries, ...postEntries];
+  const digestEntries = digestGroups.map((g) => ({
+    url: `${siteUrl}/digest/${g.category}/${g.month}`,
+    changeFrequency: "monthly",
+    priority: 0.6,
+  }));
+
+  return [...staticEntries, ...postEntries, ...digestEntries];
 }
