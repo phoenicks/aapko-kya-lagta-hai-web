@@ -1,6 +1,7 @@
 import { notFound } from "next/navigation";
 import { supabase } from "@/lib/supabaseClient";
 import { findCategory } from "@/lib/categories";
+import { computeVerdict } from "@/lib/verdict";
 import AppShell from "@/components/AppShell";
 import DebateVoter from "@/components/DebateVoter";
 import CommentSection from "@/components/CommentSection";
@@ -81,20 +82,12 @@ export default async function DebatePage({ params }) {
   ]);
 
   const url = `${siteUrl}/debate/${post.slug}`;
-  const total = (post.up_count || 0) + (post.down_count || 0);
   // Server-computed so the verdict is present in the raw HTML response —
   // most AI/search crawlers don't execute client JS, and the interactive
   // vote-split bar (DebateVoter/SplitBar) only reveals itself after a real
   // visitor taps a vote button, so without this a debate could have 2,000
   // votes and still show a crawler nothing quotable.
-  const pctUp = total > 0 ? Math.round(((post.up_count || 0) / total) * 100) : 0;
-  const pctDown = total > 0 ? 100 - pctUp : 0;
-  const verdictText =
-    total === 0
-      ? null
-      : pctUp >= 50
-      ? `${pctUp}% of ${total} said 👍 yes`
-      : `${pctDown}% of ${total} said 👎 no`;
+  const { total, text: verdictText } = computeVerdict(post.up_count, post.down_count);
 
   const discussionJsonLd = {
     "@context": "https://schema.org",
