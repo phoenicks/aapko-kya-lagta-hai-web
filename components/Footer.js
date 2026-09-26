@@ -2,6 +2,7 @@ import Link from "next/link";
 
 const LINKS = [
   { href: "/submit", label: "Submit a debate" },
+  { href: "/digest", label: "Monthly Roundups" },
   { href: "/about", label: "About" },
   { href: "/faq", label: "FAQ" },
   { href: "/privacy", label: "Privacy" },
